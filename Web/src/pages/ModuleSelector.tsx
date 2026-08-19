@@ -325,18 +325,14 @@ const ModuleSelector = () => {
         {!sidebarCollapsed && <div className="border-b border-sidebar-border px-2 pb-2 pt-2">
           <TenantSwitcher />
         </div>}
-        <div className={`mt-3 border-primary bg-sidebar-accent/60 py-3 ${sidebarCollapsed ? "mx-2 flex justify-center rounded-lg px-2" : "border-l-4 px-5"}`}>
-          <div className="flex items-center gap-2.5"><LayoutGrid className="h-4 w-4 shrink-0 text-primary"/>{!sidebarCollapsed && <span className="font-display text-sm font-bold uppercase leading-tight tracking-wide text-foreground">Sub Systems</span>}</div>
-          {!sidebarCollapsed && <div className="mt-1 truncate text-xs font-normal leading-tight text-muted-foreground">{currentTenant?.name ?? "Tenant workspace"}</div>}
-        </div>
         <nav className="flex-1 overflow-y-auto px-3 py-3">
           <div aria-current="page" className={`flex items-center rounded-lg bg-muted/70 px-3 py-2.5 text-[13px] font-medium text-foreground ${sidebarCollapsed ? "justify-center" : "gap-2.5"}`}>
             <LayoutGrid className="h-4 w-4 shrink-0 text-primary"/>{!sidebarCollapsed && <span>All Sub Systems</span>}
           </div>
         </nav>
-        {user?.isPlatformAdministrator && <div className="shrink-0 border-t border-sidebar-border px-3 py-3">
-          <button type="button" title={sidebarCollapsed ? "Platform Administration" : undefined} onClick={() => navigate(platformAdminPaths.organization)} className={`flex w-full items-center rounded-lg px-3 py-2 text-left text-[13px] font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground ${sidebarCollapsed ? "justify-center" : "gap-2.5"}`}>
-            <ShieldCheck className="h-4 w-4 shrink-0 text-primary"/>{!sidebarCollapsed && <span>Platform Administration</span>}
+        {user?.isPlatformAdministrator && <div className="flex h-12 shrink-0 items-center border-t border-sidebar-border bg-sidebar-accent/40">
+          <button type="button" title={sidebarCollapsed ? "Platform Administration" : undefined} onClick={() => navigate(platformAdminPaths.organization)} className={`flex h-full w-full items-center text-left text-[13px] font-medium text-foreground transition-colors hover:bg-sidebar-accent ${sidebarCollapsed ? "justify-center" : "gap-2.5 px-3"}`}>
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary"><ShieldCheck className="h-3.5 w-3.5"/></span>{!sidebarCollapsed && <span>Platform Administration</span>}
           </button>
         </div>}
       </aside>

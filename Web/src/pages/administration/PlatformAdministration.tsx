@@ -373,16 +373,6 @@ export default function PlatformAdministration() {
             {!sidebarCollapsed && <div className="mt-1 text-xs font-normal leading-tight text-muted-foreground">Administration control plane</div>}
           </div>
           <nav className="flex-1 overflow-y-auto px-3 py-3">
-            <button
-              type="button"
-              onClick={() => navigate("/subsystems")}
-              title={sidebarCollapsed ? "Tenant Sub Systems" : undefined}
-              className={`mb-3 flex w-full items-center rounded-lg px-3 py-2 text-left text-[13px] font-medium text-sidebar-foreground transition-all duration-150 hover:bg-sidebar-accent hover:text-foreground ${sidebarCollapsed ? "justify-center" : "gap-2.5"}`}
-            >
-              <LayoutGrid className="h-4 w-4 shrink-0 text-primary"/>
-              {!sidebarCollapsed && <span>Tenant Sub Systems</span>}
-            </button>
-            <div className="mb-2 border-t border-sidebar-border"/>
             {!sidebarCollapsed && <p className="mb-1 px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Setup</p>}
             <TabsList aria-label="Platform administration sections" className="flex h-auto w-full flex-col items-stretch gap-0.5 rounded-none bg-transparent p-0">
             <PlatformMenuTrigger value="organizations" icon={Building2} label="Organization" collapsed={sidebarCollapsed} />
@@ -393,6 +383,17 @@ export default function PlatformAdministration() {
             <PlatformMenuTrigger value="users" icon={Contact} label="Users" collapsed={sidebarCollapsed} />
           </TabsList>
           </nav>
+          <div className="flex h-12 shrink-0 items-center border-t border-sidebar-border bg-sidebar-accent/40">
+            <button
+              type="button"
+              onClick={() => navigate("/subsystems")}
+              title={sidebarCollapsed ? "Tenant Sub Systems" : undefined}
+              className={`flex h-full w-full items-center text-left text-[13px] font-medium text-foreground transition-colors hover:bg-sidebar-accent ${sidebarCollapsed ? "justify-center" : "gap-2.5 px-3"}`}
+            >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary"><LayoutGrid className="h-3.5 w-3.5"/></span>
+              {!sidebarCollapsed && <span>Tenant Sub Systems</span>}
+            </button>
+          </div>
         </aside>
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="fixed left-3 top-2 z-50 md:hidden">
@@ -414,10 +415,6 @@ export default function PlatformAdministration() {
                   <div className="mt-1 text-xs text-muted-foreground">Administration control plane</div>
                 </div>
                 <nav className="flex-1 overflow-y-auto px-3 py-3">
-                  <button type="button" onClick={() => { setMobileMenuOpen(false); navigate("/subsystems"); }} className="mb-3 flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] font-medium text-sidebar-foreground hover:bg-sidebar-accent">
-                    <LayoutGrid className="h-4 w-4 text-primary"/><span>Tenant Sub Systems</span>
-                  </button>
-                  <div className="mb-2 border-t border-sidebar-border"/>
                   <p className="mb-1 px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Setup</p>
                   <TabsList aria-label="Platform administration sections" className="flex h-auto w-full flex-col items-stretch gap-0.5 rounded-none bg-transparent p-0">
                     <PlatformMenuTrigger value="organizations" icon={Building2} label="Organization" collapsed={false} onSelect={() => setMobileMenuOpen(false)}/>
@@ -428,6 +425,11 @@ export default function PlatformAdministration() {
                     <PlatformMenuTrigger value="users" icon={Contact} label="Users" collapsed={false} onSelect={() => setMobileMenuOpen(false)}/>
                   </TabsList>
                 </nav>
+                <div className="flex h-12 shrink-0 items-center border-t border-sidebar-border bg-sidebar-accent/40">
+                  <button type="button" onClick={() => { setMobileMenuOpen(false); navigate("/subsystems"); }} className="flex h-full w-full items-center gap-2.5 px-3 text-left text-[13px] font-medium text-foreground hover:bg-sidebar-accent">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary"><LayoutGrid className="h-3.5 w-3.5"/></span><span>Tenant Sub Systems</span>
+                  </button>
+                </div>
               </SheetContent>
             </Sheet>
           </div>
