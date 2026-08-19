@@ -346,7 +346,7 @@ const UserAccountDialog = ({ open, onOpenChange, targetUser, createMode = false,
 
   return <>
   <Dialog open={open} onOpenChange={requestClose}>
-    <DialogContent className="grid h-[680px] max-h-[94vh] w-[min(96vw,64rem)] max-w-none grid-rows-[auto_minmax(0,1fr)_auto] gap-3 overflow-hidden p-5">
+    <DialogContent className="grid h-[680px] max-h-[94vh] w-[min(96vw,64rem)] max-w-none grid-rows-[auto_minmax(0,1fr)_auto] gap-3 overflow-hidden px-5 py-2.5">
       <DialogHeader className="space-y-0 border-b pb-3 pr-12">
         <div className="flex items-center justify-between gap-4 text-left">
           <div className="min-w-0">
@@ -359,10 +359,10 @@ const UserAccountDialog = ({ open, onOpenChange, targetUser, createMode = false,
             <UserAvatar
               name={form.name || effectiveUser?.name}
               profilePictureUrl={pendingPicture?.url || displayPictureUrl}
-              className="h-8 w-8 shrink-0 ring-2 ring-primary/20"
+              className="h-10 w-10 shrink-0 ring-2 ring-primary/20"
             />
             <div className="min-w-0">
-              <p className="truncate text-xs font-semibold leading-tight">{form.name.trim() || effectiveUser?.name || "New user"}</p>
+              <p className="truncate text-[13px] font-semibold leading-tight">{form.name.trim() || effectiveUser?.name || "New user"}</p>
               <p className="mt-0.5 truncate text-[11px] leading-tight text-muted-foreground">{form.userName.trim() ? `@${form.userName.trim()}` : "No username yet"}</p>
             </div>
           </div>
