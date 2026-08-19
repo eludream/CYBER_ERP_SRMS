@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/Application/">
+    <Project Path="CyberErp.Srms.App/CyberErp.Srms.App.csproj" />
+  </Folder>
+  <Folder Name="/Domain/">
+    <Project Path="CyberErp.Srms.Dom/CyberErp.Srms.Dom.csproj" />
+  </Folder>
+  <Folder Name="/Infrastracture/">
+    <Project Path="CyberErp.Srms.Inf/CyberErp.Srms.Inf.csproj" />
+  </Folder>
+  <Project Path="CyberErp.Srms.Api/CyberErp.Srms.Api.csproj" />
+</Solution>

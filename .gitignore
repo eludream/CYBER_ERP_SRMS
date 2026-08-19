@@ -1,0 +1,99 @@
+# ==========================================
+# .NET / Visual Studio / C#
+# ==========================================
+# Build outputs
+[Bb]in/
+[Oo]bj/
+mshtml.map
+mshtml.pdb
+*.exe
+*.dll
+*.pdb
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Packages and publishing
+project.lock.json
+project.fragment.lock.json
+artifacts/
+publish/
+out/
+
+# Roslyn and analyzers
+*.toolset
+.savedState
+
+# User-specific and local files
+appsettings.Development.json
+appsettings.Local.json
+*.user
+.vs/
+.vscode/
+.idea/
+
+# Secrets and User Secrets configuration
+secrets.json
+.microsoft/usersecrets/
+
+# ==========================================
+# React / Node / Frontend
+# ==========================================
+# Dependencies
+node_modules/
+jspm_packages/
+
+# Production build outputs
+/build
+/dist
+/out-tsc
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Runtime environment variables (Secrets)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Editor / System specific
+.DS_Store
+Thumbs.db
+
+# Testing cache and coverage
+coverage/
+.npm
+.eslintcache
+.stylelintcache
+.vite
+.parcel-cache
+
+# Optional: TypeScript declaration build info cache
+*.tsbuildinfo
+*.log
+*.log
+/API/CyberErp.Srms.Api/logs
+/API/CyberErp.Srms.Api/bin
+/API/CyberErp.Srms.Api/obj
+/API/CyberErp.Srms.Api/App_Data/DataProtection-Keys/
+/API/CyberErp.Srms.Dom/obj
+/API/CyberErp.Srms.Inf/bin
+/API/CyberErp.Srms.Inf/obj
+/tmp-codex-build
+/API/CyberErp.Srms.Inf/obj
+/Web/tmp-codex-build
+/Backups
+/API/Database
+/Web/dist-rebuild
+/API/CyberErp.Srms.Inf/Migrations
+*.lock
+*.lockb
+/Web/src/test
