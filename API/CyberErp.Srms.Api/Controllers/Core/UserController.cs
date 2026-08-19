@@ -173,9 +173,16 @@ namespace CyberErp.Srms.Api.Controllers.Core
         [AllowAnonymous]
         public async Task<IActionResult> GetProfilePicture(Guid id, CancellationToken ct)
         {
-            var user = await _db.User.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
-            if (user?.ProfilePicture is null) return NotFound();
-            return File(user.ProfilePicture, user.ProfilePictureContentType ?? "image/jpeg");
+            var picture = await _db.User.AsNoTracking()
+                .Where(x => x.Id == id)
+                .Select(x => new { x.ProfilePicture, x.ProfilePictureContentType })
+                .FirstOrDefaultAsync(ct);
+            if (picture?.ProfilePicture is null)
+            {
+                Response.Headers.CacheControl = "no-store";
+                return NotFound();
+            }
+            return File(picture.ProfilePicture, picture.ProfilePictureContentType ?? "image/jpeg");
         }
 
         [HttpDelete("{id:guid}/profile-picture")]

@@ -18,7 +18,18 @@ public class GetUserByIdHandler(
         logger.LogInformation("Getting User with ID: {Id}", request.Id);
 
         var user = await repository.GetAll()
-            .FirstOrDefaultAsync(u => u.Id == request.Id, ct);
+            .Where(u => u.Id == request.Id)
+            .Select(u => new
+            {
+                u.Id,
+                u.EmployeeId,
+                u.FullName,
+                u.Email,
+                u.PhoneNumber,
+                u.UserName,
+                HasProfilePicture = u.ProfilePicture != null
+            })
+            .FirstOrDefaultAsync(ct);
 
         if (user == null)
         {
@@ -33,7 +44,8 @@ public class GetUserByIdHandler(
             FullName = user.FullName,
             Email = user.Email,
             PhoneNumber = user.PhoneNumber,
-            UserName = user.UserName
+            UserName = user.UserName,
+            ProfilePictureUrl = user.HasProfilePicture ? $"/api/v1.0/User/{user.Id}/profile-picture" : null
         };
     }
 }

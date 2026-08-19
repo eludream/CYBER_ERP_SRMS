@@ -3,6 +3,7 @@ import { Bell, Camera, Check, CheckCircle2, ChevronsUpDown, Clock3, History, Key
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { cacheBustedUrl } from "@/lib/utils";
 import { authService, AccountProfileResponse } from "@/services/api/authService";
 import { AdminRoleDto, AvailableEmployeeDto, coreAdminService } from "@/services/api/coreAdminService";
 import { multiTenantService, PlatformSystemSettings } from "@/services/api/multiTenantService";
@@ -119,6 +120,9 @@ const UserAccountDialog = ({ open, onOpenChange, targetUser, createMode = false,
           };
           setForm(identityForm);
           syncUserProfile(identityForm);
+          const nextPictureUrl = cacheBustedUrl(data.profilePictureUrl);
+          setDisplayPictureUrl(nextPictureUrl);
+          syncProfilePicture(user.id, nextPictureUrl);
           const currentSnapshot = initialForm.current ? JSON.parse(initialForm.current) : {};
           initialForm.current = JSON.stringify({ ...currentSnapshot, form: identityForm });
         })

@@ -213,7 +213,7 @@ namespace CyberErp.Srms.Api.Controllers.Core
             var userIdentity = Guid.TryParse(result.UserId, out var currentUserId)
                 ? await _db.User
                     .Where(x => x.Id == currentUserId)
-                    .Select(x => new { x.FullName, x.UserName, x.Email, x.PhoneNumber, x.IsPlatformAdministrator })
+                    .Select(x => new { x.FullName, x.UserName, x.Email, x.PhoneNumber, x.IsPlatformAdministrator, HasProfilePicture = x.ProfilePicture != null })
                     .SingleOrDefaultAsync()
                 : null;
 
@@ -226,7 +226,9 @@ namespace CyberErp.Srms.Api.Controllers.Core
                 PhoneNumber = userIdentity?.PhoneNumber ?? string.Empty,
                 result.TenantId,
                 IsPlatformAdministrator = userIdentity?.IsPlatformAdministrator ?? false,
-                ProfilePictureUrl = $"/api/v1.0/User/{result.UserId}/profile-picture",
+                ProfilePictureUrl = userIdentity?.HasProfilePicture == true
+                    ? $"/api/v1.0/User/{result.UserId}/profile-picture"
+                    : null,
                 SessionTimeoutMinutes = await _db.PlatformSystemSettings
                     .AsNoTracking()
                     .Select(x => (int?)x.SessionTimeoutMinutes)

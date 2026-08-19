@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { authService } from "@/services/api/authService";
+import { cacheBustedUrl } from "@/lib/utils";
 
 // Module codes are tenant-managed and may be added at runtime.
 export type ERPModule = string;
@@ -75,7 +76,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           userName: current.userName,
           role: "User",
           isPlatformAdministrator: current.isPlatformAdministrator,
-          profilePictureUrl: current.profilePictureUrl || null,
+          profilePictureUrl: cacheBustedUrl(current.profilePictureUrl),
         });
         setIsAuthenticated(true);
         setSessionTimeoutMinutes(current.sessionTimeoutMinutes || 30);
@@ -94,7 +95,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (userName: string, password: string) => {
     const { data: result } = await authService.login({ userName, password });
     localStorage.setItem("auth_token", result.token);
-    setUser({ id: result.id, name: result.fullName || result.userName, email: result.email, phoneNumber: result.phoneNumber || "", userName: result.userName, role: "User", isPlatformAdministrator: result.isPlatformAdministrator, profilePictureUrl: result.profilePictureUrl || null });
+    setUser({ id: result.id, name: result.fullName || result.userName, email: result.email, phoneNumber: result.phoneNumber || "", userName: result.userName, role: "User", isPlatformAdministrator: result.isPlatformAdministrator, profilePictureUrl: cacheBustedUrl(result.profilePictureUrl) });
     setIsAuthenticated(true);
     setSessionTimeoutMinutes(result.sessionTimeoutMinutes || 30);
     await applyUserTheme(result.id);
@@ -142,8 +143,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const uploadProfilePicture = async (file: File) => {
     if (!user) throw new Error("No authenticated user");
     const { data } = await authService.uploadProfilePicture(user.id, file);
-    const separator = data.profilePictureUrl.includes("?") ? "&" : "?";
-    setUser(current => current?.id === user.id ? { ...current, profilePictureUrl: `${data.profilePictureUrl}${separator}v=${Date.now()}` } : current);
+    setUser(current => current?.id === user.id ? { ...current, profilePictureUrl: cacheBustedUrl(data.profilePictureUrl) } : current);
   };
 
   const removeProfilePicture = async () => {

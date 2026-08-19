@@ -38,10 +38,26 @@ public class LoginRepository(
         _logger.LogInformation("Login with UserName: {UserName}", dto.UserName);
 
         var normalized = dto.UserName.Trim().ToUpperInvariant();
-        var user = await _userRepository.GetAllWithoutTenantFilter()
-            .SingleOrDefaultAsync(mu => mu.NormalizedUserName == normalized);
+        var snapshot = await _db.User.AsNoTracking()
+            .Where(mu => mu.NormalizedUserName == normalized)
+            .Select(mu => new
+            {
+                mu.Id,
+                mu.EmployeeId,
+                mu.FullName,
+                mu.Email,
+                mu.PhoneNumber,
+                mu.UserName,
+                mu.Password,
+                mu.AccountStatus,
+                mu.FailedLoginAttempts,
+                mu.LockoutEndUtc,
+                mu.IsPlatformAdministrator,
+                HasProfilePicture = mu.ProfilePicture != null
+            })
+            .SingleOrDefaultAsync();
 
-        if (user is null)
+        if (snapshot is null)
         {
             _logger.LogWarning("Invalid credentials for UserName: {UserName}", dto.UserName);
             throw new UnauthorizedException("Invalid username or password");
@@ -60,59 +76,65 @@ public class LoginRepository(
             ? policy.LockoutDurationMinutes
             : 30;
 
-        if (!user.AccountStatus)
+        if (!snapshot.AccountStatus)
         {
             _logger.LogWarning("Login blocked for inactive account: {UserName}", dto.UserName);
             throw new UnauthorizedException("Your account is inactive. Contact your administrator to reactivate it.");
         }
 
-        if (user.LockoutEndUtc.HasValue)
+        async Task<User> LoadUser() =>
+            await _userRepository.GetAllWithoutTenantFilter().SingleAsync(mu => mu.Id == snapshot.Id);
+
+        if (snapshot.LockoutEndUtc.HasValue)
         {
-            if (user.LockoutEndUtc.Value > DateTime.UtcNow)
+            if (snapshot.LockoutEndUtc.Value > DateTime.UtcNow)
             {
                 _logger.LogWarning("Login blocked for locked account: {UserName}", dto.UserName);
                 throw new UnauthorizedException("Your account is temporarily locked. Try again after the lockout period.");
             }
 
-            user.RecordSuccessfulLogin();
+            var unlockedUser = await LoadUser();
+            unlockedUser.RecordSuccessfulLogin();
             await _unitOfWork.SaveChangesAsync();
         }
 
-        if (!_authentication.VerifyPassword(dto.Password, user.Password))
+        if (!_authentication.VerifyPassword(dto.Password, snapshot.Password))
         {
-            user.RecordFailedLogin(maxLoginAttempts, lockoutDurationMinutes);
+            var failedUser = await LoadUser();
+            failedUser.RecordFailedLogin(maxLoginAttempts, lockoutDurationMinutes);
             await _unitOfWork.SaveChangesAsync();
 
             _logger.LogWarning(
                 "Invalid credentials for UserName: {UserName}. Failed attempt {FailedAttempt} of {MaxAttempts}",
                 dto.UserName,
-                user.FailedLoginAttempts,
+                failedUser.FailedLoginAttempts,
                 maxLoginAttempts);
 
-            if (user.LockoutEndUtc.HasValue && user.LockoutEndUtc.Value > DateTime.UtcNow)
+            if (failedUser.LockoutEndUtc.HasValue && failedUser.LockoutEndUtc.Value > DateTime.UtcNow)
                 throw new UnauthorizedException($"Your account is temporarily locked for {lockoutDurationMinutes} minutes.");
 
             throw new UnauthorizedException("Invalid username or password");
         }
 
-        if (user.FailedLoginAttempts > 0 || user.LockoutEndUtc.HasValue)
+        if (snapshot.FailedLoginAttempts > 0 || snapshot.LockoutEndUtc.HasValue)
         {
-            user.RecordSuccessfulLogin();
+            var successfulUser = await LoadUser();
+            successfulUser.RecordSuccessfulLogin();
             await _unitOfWork.SaveChangesAsync();
         }
 
         var tokenId = Guid.NewGuid();
         var userResult = new UserResult
         {
-            Id = user.Id,
-            EmployeeId = user.EmployeeId,
-            FullName = user.FullName,
-            Email = user.Email,
-            PhoneNumber = user.PhoneNumber ?? string.Empty,
-            UserName = user.UserName,
-            ProfilePictureUrl = user.ProfilePicture != null ? $"/api/v1.0/User/{user.Id}/profile-picture" : null,
+            Id = snapshot.Id,
+            EmployeeId = snapshot.EmployeeId,
+            FullName = snapshot.FullName,
+            Email = snapshot.Email,
+            PhoneNumber = snapshot.PhoneNumber ?? string.Empty,
+            UserName = snapshot.UserName,
+            ProfilePictureUrl = snapshot.HasProfilePicture ? $"/api/v1.0/User/{snapshot.Id}/profile-picture" : null,
             TenantId = null,
-            IsPlatformAdministrator = user.IsPlatformAdministrator
+            IsPlatformAdministrator = snapshot.IsPlatformAdministrator
         };
 
         var token = _authentication.GenerateToken(userResult, tokenId);
@@ -121,7 +143,7 @@ public class LoginRepository(
 
         await _tokenStore.StoreAsync(tokenId.ToString(), jwtToken.ValidTo);
 
-        SetUserCookies(user.Id.ToString(), user.UserName);
+        SetUserCookies(snapshot.Id.ToString(), snapshot.UserName);
 
         return userResult;
     }
