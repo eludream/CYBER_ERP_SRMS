@@ -11,7 +11,7 @@ public class SrmsDbContextDesignTimeFactory : IDesignTimeDbContextFactory<SrmsDb
     {
         var optionsBuilder = new DbContextOptionsBuilder<SrmsDbContext>();
         var connectionString =
-            "Server=CLOUDX-SICS2\\SQLEXPRESS;Database=CERP_Latest;Trusted_Connection=True;TrustServerCertificate=True;";
+            "Server=lpc:.\\SQLEXPRESS;Database=CERP_Latest;Trusted_Connection=True;TrustServerCertificate=True;";
         optionsBuilder.UseSqlServer(connectionString, b => b.MigrationsAssembly("CyberErp.Srms.Inf"));
 
         var tenantAccessor = new StaticMultiTenantContextAccessor<AppTenantInfo>(new AppTenantInfo
