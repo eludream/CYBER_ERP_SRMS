@@ -80,6 +80,7 @@ const UserAccountDialog = ({ open, onOpenChange, targetUser, createMode = false,
   const [pictureRemoved, setPictureRemoved] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
   const isAdminFlow = createMode || Boolean(targetUser);
+  const canEditIdentity = createMode || Boolean(user?.isPlatformAdministrator);
   const effectiveUser = createMode ? null : targetUser || user;
 
   const snapshot = useMemo(() => JSON.stringify({ form, preferences, roleIds, employeeId, adminStatus }), [form, preferences, roleIds, employeeId, adminStatus]);
@@ -346,9 +347,26 @@ const UserAccountDialog = ({ open, onOpenChange, targetUser, createMode = false,
   return <>
   <Dialog open={open} onOpenChange={requestClose}>
     <DialogContent className="grid h-[680px] max-h-[94vh] w-[min(96vw,64rem)] max-w-none grid-rows-[auto_minmax(0,1fr)_auto] gap-3 overflow-hidden p-5">
-      <DialogHeader>
-        <DialogTitle>{createMode ? (platformMode ? "Add platform user" : "Create user") : targetUser ? `Edit ${targetUser.name}` : "My profile"}</DialogTitle>
-        <DialogDescription>{createMode ? (platformMode ? "Create a new platform identity and assign its access roles." : "Create an account and configure its profile preferences.") : "Manage account information, personal preferences, and security."}</DialogDescription>
+      <DialogHeader className="space-y-0 border-b pb-3 pr-12">
+        <div className="flex items-center justify-between gap-4 text-left">
+          <div className="min-w-0">
+            <DialogTitle>{createMode ? (platformMode ? "Add platform user" : "Create user") : targetUser ? `Edit ${targetUser.name}` : "My profile"}</DialogTitle>
+            <DialogDescription className="mt-1">
+              {createMode ? (platformMode ? "Create a new platform identity and assign its access roles." : "Create an account and configure its profile preferences.") : "Manage account information, personal preferences, and security."}
+            </DialogDescription>
+          </div>
+          <div className="flex max-w-[16rem] shrink-0 items-center gap-2.5 rounded-lg bg-muted/30 px-2.5 py-1.5">
+            <UserAvatar
+              name={form.name || effectiveUser?.name}
+              profilePictureUrl={pendingPicture?.url || displayPictureUrl}
+              className="h-8 w-8 shrink-0 ring-2 ring-primary/20"
+            />
+            <div className="min-w-0">
+              <p className="truncate text-xs font-semibold leading-tight">{form.name.trim() || effectiveUser?.name || "New user"}</p>
+              <p className="mt-0.5 truncate text-[11px] leading-tight text-muted-foreground">{form.userName.trim() ? `@${form.userName.trim()}` : "No username yet"}</p>
+            </div>
+          </div>
+        </div>
       </DialogHeader>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)]">
         <TabsList className="grid h-9 w-full grid-cols-3">
@@ -364,7 +382,7 @@ const UserAccountDialog = ({ open, onOpenChange, targetUser, createMode = false,
               <UserAvatar name={form.name || effectiveUser?.name} profilePictureUrl={pendingPicture?.url || displayPictureUrl} className="h-24 w-24 ring-4 ring-primary/15" fallbackClassName="text-xl" />
               <span className="absolute bottom-0 right-0 rounded-full bg-primary p-1.5 text-primary-foreground ring-2 ring-background"><Camera className="h-3.5 w-3.5" /></span>
             </div>
-            <div className="mt-3 min-w-0"><p className="truncate text-sm font-semibold">{form.name || "New user"}</p><p className="mt-0.5 truncate text-xs text-muted-foreground">{form.userName ? `@${form.userName}` : "Profile picture"}</p><p className="mt-2 text-[11px] leading-4 text-muted-foreground">Square JPG, PNG, GIF, or WebP<br />up to 5 MB.</p>
+            <div className="mt-3 min-w-0"><p className="text-[11px] leading-4 text-muted-foreground">Square JPG, PNG, GIF, or WebP<br />up to 5 MB.</p>
               <div className="mt-3 grid gap-1.5"><Button type="button" size="sm" variant="outline" className="h-8" onClick={() => inputRef.current?.click()} disabled={busy}><Upload className="mr-1.5 h-3.5 w-3.5" /> Change picture</Button>
                 {(pendingPicture || displayPictureUrl) && <Button type="button" size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={handleRemove} disabled={busy}><Trash2 className="mr-1.5 h-3.5 w-3.5" /> Remove</Button>}</div>
             </div><input ref={inputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={handleFile} />
@@ -372,8 +390,8 @@ const UserAccountDialog = ({ open, onOpenChange, targetUser, createMode = false,
           <div className="grid content-start gap-3 rounded-lg border p-4 sm:grid-cols-2">
             <div className="sm:col-span-2"><h3 className="text-sm font-semibold">Account information</h3><p className="text-xs text-muted-foreground">Basic identity and sign-in details.</p></div>
             {isAdminFlow && <div className="space-y-1.5 sm:col-span-2"><Label>Employee</Label><Popover modal open={employeeOpen} onOpenChange={setEmployeeOpen}><PopoverTrigger asChild><Button type="button" variant="outline" role="combobox" aria-expanded={employeeOpen} className="h-10 w-full justify-between font-normal">{employeeId ? (() => { const selected = employees.find(x => x.employeeId === employeeId); return selected ? <span className="min-w-0 text-left"><span className="block truncate font-medium">{selected.fullName}</span><span className="block truncate text-xs text-muted-foreground">{selected.employeeNumber}</span></span> : targetUser?.employeeFullName ? <span>{targetUser.employeeFullName} · {targetUser.employeeNumber}</span> : "Selected employee"; })() : <span className="text-muted-foreground">Search and select an employee</span>}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" /></Button></PopoverTrigger><PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start"><Command><CommandInput placeholder="Search name or employee number..." /><CommandList className="h-64 max-h-64 overscroll-contain overflow-y-auto"><CommandEmpty>No employee without a user account was found.</CommandEmpty><CommandGroup>{employees.map(employee => <CommandItem key={employee.employeeId} value={`${employee.fullName} ${employee.employeeNumber}`} onSelect={() => { setEmployeeId(employee.employeeId); setForm(current => ({ ...current, name: employee.fullName, email: employee.email || current.email, phoneNumber: employee.phoneNumber || current.phoneNumber })); setEmployeeOpen(false); }}><Check className={`mr-2 h-4 w-4 ${employeeId === employee.employeeId ? "opacity-100" : "opacity-0"}`} /><span className="min-w-0"><span className="block truncate font-medium">{employee.fullName}</span><span className="block truncate text-xs text-muted-foreground">{employee.employeeNumber}{employee.email ? ` · ${employee.email}` : ""}</span></span></CommandItem>)}</CommandGroup></CommandList></Command></PopoverContent></Popover></div>}
-            <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="profile-name">Full name <span className="text-destructive">*</span></Label><Input id="profile-name" autoComplete="name" value={form.name} onChange={e => setForm(v => ({ ...v, name: e.target.value }))} /></div>
-            <div className="space-y-1.5"><Label htmlFor="profile-username">Username <span className="text-destructive">*</span></Label><Input id="profile-username" autoComplete="username" value={form.userName} onChange={e => setForm(v => ({ ...v, userName: e.target.value }))} /></div>
+            <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="profile-name">Full name{canEditIdentity ? <span className="text-destructive"> *</span> : null}</Label><Input id="profile-name" autoComplete="name" value={form.name} disabled={!canEditIdentity} onChange={e => setForm(v => ({ ...v, name: e.target.value }))} /></div>
+            <div className="space-y-1.5"><Label htmlFor="profile-username">Username{canEditIdentity ? <span className="text-destructive"> *</span> : null}</Label><Input id="profile-username" autoComplete="username" value={form.userName} disabled={!canEditIdentity} onChange={e => setForm(v => ({ ...v, userName: e.target.value }))} /></div>
             <div className="space-y-1.5"><Label htmlFor="profile-phone">Phone number <span className="font-normal text-muted-foreground">(optional)</span></Label><Input id="profile-phone" type="tel" autoComplete="tel" value={form.phoneNumber} onChange={e => setForm(v => ({ ...v, phoneNumber: e.target.value }))} /></div>
             <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="profile-email">Email <span className="text-destructive">*</span></Label><Input id="profile-email" type="email" autoComplete="email" value={form.email} onChange={e => setForm(v => ({ ...v, email: e.target.value }))} /></div>
           </div>
