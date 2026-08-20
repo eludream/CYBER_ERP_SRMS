@@ -59,6 +59,14 @@ export interface UserPreferencesResponse {
   approvalNotifications: boolean;
 }
 
+export interface PasswordPolicy {
+  minimumPasswordLength: number;
+  requireUppercase: boolean;
+  requireLowercase: boolean;
+  requireNumbers: boolean;
+  requireSpecialCharacters: boolean;
+}
+
 export interface RefreshTokenRequest {
   refreshToken: string;
 }
@@ -111,6 +119,8 @@ export const authService = {
 
   changePassword: (userId: string, currentPassword: string, newPassword: string) =>
     httpClient.post<void>(`/User/${userId}/change-password`, { currentPassword, newPassword }),
+
+  getPasswordPolicy: () => httpClient.get<PasswordPolicy>("/User/password-policy"),
 
   getUserPreferences: (userId: string) => httpClient.get<UserPreferencesResponse>(`/User/${userId}/preferences`),
 

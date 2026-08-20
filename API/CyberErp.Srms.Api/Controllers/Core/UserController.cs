@@ -54,7 +54,19 @@ namespace CyberErp.Srms.Api.Controllers.Core
             return await _getAllUsers.Handle(request);
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("password-policy")]
+        public async Task<IActionResult> GetPasswordPolicy(CancellationToken ct)
+        {
+            var settings = await _db.PlatformSystemSettings.AsNoTracking().SingleAsync(ct);
+            return Ok(new PasswordPolicyResponse(
+                settings.MinimumPasswordLength,
+                settings.RequireUppercase,
+                settings.RequireNumbers,
+                settings.RequireSpecialCharacters,
+                RequireLowercase: true));
+        }
+
+        [HttpGet("{id:guid}")]
         public async Task<UserDto> GetById(Guid id)
         {
             return await _getUserById.Handle(new GetUserByIdRequest(id));
@@ -65,6 +77,11 @@ namespace CyberErp.Srms.Api.Controllers.Core
             [FromBody] CreateUserRequest dto,
             CancellationToken ct)
         {
+            var settings = await _db.PlatformSystemSettings.AsNoTracking().SingleAsync(ct);
+            var passwordErrors = PlatformSecurityPolicy.ValidatePassword(dto.Password, settings);
+            if (passwordErrors.Count > 0)
+                return BadRequest(new { message = string.Join(" ", passwordErrors), errors = passwordErrors });
+
             var roleIds = dto.RoleIds?.Distinct().ToArray() ?? [];
             var validRoleIds = await _db.StandardRoleTemplates.AsNoTracking()
                 .Where(role => role.IsPlatformRole && role.IsActive && roleIds.Contains(role.Id))
@@ -246,20 +263,6 @@ namespace CyberErp.Srms.Api.Controllers.Core
             return NoContent();
         }
 
-        [HttpGet("password-policy")]
-        public async Task<IActionResult> GetPasswordPolicy(CancellationToken ct)
-        {
-            var settings = await _db.PlatformSystemSettings.AsNoTracking().SingleAsync(ct);
-            return Ok(new
-            {
-                settings.MinimumPasswordLength,
-                settings.RequireUppercase,
-                settings.RequireNumbers,
-                settings.RequireSpecialCharacters,
-                RequireLowercase = true
-            });
-        }
-
         [HttpGet("{id:guid}/preferences")]
         public async Task<IActionResult> GetPreferences(Guid id, CancellationToken ct)
         {
@@ -312,6 +315,12 @@ namespace CyberErp.Srms.Api.Controllers.Core
         }
     }
 
+    public record PasswordPolicyResponse(
+        int MinimumPasswordLength,
+        bool RequireUppercase,
+        bool RequireNumbers,
+        bool RequireSpecialCharacters,
+        bool RequireLowercase);
     public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
     public record UserPreferenceRequest(string Language, string TimeZone, string DateFormat, string NumberFormat,
         string LandingPage, string Theme, bool EmailNotifications, bool InAppNotifications, bool ApprovalNotifications);

@@ -4,9 +4,9 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { cacheBustedUrl } from "@/lib/utils";
-import { authService, AccountProfileResponse } from "@/services/api/authService";
+import { authService, AccountProfileResponse, PasswordPolicy } from "@/services/api/authService";
 import { AdminRoleDto, AvailableEmployeeDto, coreAdminService } from "@/services/api/coreAdminService";
-import { multiTenantService, PlatformSystemSettings } from "@/services/api/multiTenantService";
+import { multiTenantService } from "@/services/api/multiTenantService";
 import UserAvatar from "@/components/UserAvatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
@@ -53,6 +53,30 @@ const formatDate = (value?: string | null) => value
   ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value))
   : "Not available";
 
+const defaultPasswordPolicy: PasswordPolicy = {
+  minimumPasswordLength: 8,
+  requireUppercase: true,
+  requireLowercase: true,
+  requireNumbers: true,
+  requireSpecialCharacters: true,
+};
+
+const passwordPolicyHint = (policy: PasswordPolicy) => {
+  const requirements = ["lowercase"];
+  if (policy.requireUppercase) requirements.push("uppercase");
+  if (policy.requireNumbers) requirements.push("number");
+  if (policy.requireSpecialCharacters) requirements.push("special character");
+  return `Use at least ${policy.minimumPasswordLength} characters with ${requirements.join(", ")}.`;
+};
+
+const passwordPolicyErrors = (password: string, policy: PasswordPolicy) => [
+  password.length < policy.minimumPasswordLength ? `Use at least ${policy.minimumPasswordLength} characters` : "",
+  policy.requireLowercase && !/[a-z]/.test(password) ? "Add a lowercase letter" : "",
+  policy.requireUppercase && !/[A-Z]/.test(password) ? "Add an uppercase letter" : "",
+  policy.requireNumbers && !/\d/.test(password) ? "Add a number" : "",
+  policy.requireSpecialCharacters && !/[^A-Za-z0-9]/.test(password) ? "Add a special character" : "",
+].filter(Boolean);
+
 const UserAccountDialog = ({ open, onOpenChange, targetUser, createMode = false, onAdminSaved, platformMode = false, platformAdministrator = false }: Props) => {
   const { user, uploadProfilePicture, removeProfilePicture, syncProfilePicture, syncUserProfile, updateProfile, logout } = useAuth();
   const { setTheme } = useTheme();
@@ -68,8 +92,7 @@ const UserAccountDialog = ({ open, onOpenChange, targetUser, createMode = false,
   const [crop, setCrop] = useState<{ file: File; url: string; zoom: number; x: number; y: number } | null>(null);
   const [activityOpen, setActivityOpen] = useState(false);
   const [initialPassword, setInitialPassword] = useState("");
-  const [platformPolicy, setPlatformPolicy] = useState<PlatformSystemSettings | null>(null);
-  const [passwordPolicy] = useState({ minimumPasswordLength: 8, requireUppercase: true, requireLowercase: true, requireNumbers: true, requireSpecialCharacters: true });
+  const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy>(defaultPasswordPolicy);
   const [roles, setRoles] = useState<AdminRoleDto[]>([]);
   const [employees, setEmployees] = useState<AvailableEmployeeDto[]>([]);
   const [employeeId, setEmployeeId] = useState<string | null>(null);
@@ -97,7 +120,15 @@ const UserAccountDialog = ({ open, onOpenChange, targetUser, createMode = false,
     setPreferences(nextPreferences);
     setPassword({ current: "", next: "", confirm: "" });
     setInitialPassword("");
-    setPlatformPolicy(null);
+    authService.getPasswordPolicy()
+      .then(({ data }) => setPasswordPolicy({
+        minimumPasswordLength: data.minimumPasswordLength ?? defaultPasswordPolicy.minimumPasswordLength,
+        requireUppercase: data.requireUppercase ?? defaultPasswordPolicy.requireUppercase,
+        requireLowercase: data.requireLowercase ?? true,
+        requireNumbers: data.requireNumbers ?? defaultPasswordPolicy.requireNumbers,
+        requireSpecialCharacters: data.requireSpecialCharacters ?? defaultPasswordPolicy.requireSpecialCharacters,
+      }))
+      .catch(() => toast.error("Unable to load the password policy"));
     const nextRoleIds = targetUser?.roleIds || [];
     setRoleIds(nextRoleIds);
     const nextEmployeeId = targetUser?.employeeId || null;
@@ -166,11 +197,6 @@ const UserAccountDialog = ({ open, onOpenChange, targetUser, createMode = false,
       coreAdminService.getAvailableEmployees(targetUser?.id)
         .then(({ data }) => setEmployees(data))
         .catch(() => toast.error("Unable to load employees"));
-      if (platformMode) {
-        multiTenantService.platformSystemSettings()
-          .then(setPlatformPolicy)
-          .catch(() => toast.error("Unable to load the platform security policy"));
-      }
       if (createMode) return;
     }
     setLoadingDetails(true);
@@ -273,16 +299,8 @@ const UserAccountDialog = ({ open, onOpenChange, targetUser, createMode = false,
     try {
       if (createMode) {
         if (!initialPassword) throw new Error("An initial password is required");
-        if (platformMode && platformPolicy) {
-          const policyErrors = [
-            initialPassword.length < platformPolicy.minimumPasswordLength ? `Use at least ${platformPolicy.minimumPasswordLength} characters` : "",
-            !/[a-z]/.test(initialPassword) ? "Add a lowercase letter" : "",
-            platformPolicy.requireUppercase && !/[A-Z]/.test(initialPassword) ? "Add an uppercase letter" : "",
-            platformPolicy.requireNumbers && !/\d/.test(initialPassword) ? "Add a number" : "",
-            platformPolicy.requireSpecialCharacters && !/[^A-Za-z0-9]/.test(initialPassword) ? "Add a special character" : "",
-          ].filter(Boolean);
-          if (policyErrors.length) throw new Error(policyErrors.join(". "));
-        }
+        const policyErrors = passwordPolicyErrors(initialPassword, passwordPolicy);
+        if (policyErrors.length) throw new Error(policyErrors.join(". "));
         const data = platformMode
           ? await multiTenantService.savePlatformUser({
               employeeId, fullName: form.name.trim(), email: form.email.trim(), phoneNumber: form.phoneNumber.trim(),
@@ -336,13 +354,7 @@ const UserAccountDialog = ({ open, onOpenChange, targetUser, createMode = false,
   const handlePasswordChange = async () => {
     if (!user) return;
     if (password.next !== password.confirm) return toast.error("New passwords do not match");
-    const policyErrors = [
-      password.next.length < passwordPolicy.minimumPasswordLength ? `Use at least ${passwordPolicy.minimumPasswordLength} characters` : "",
-      passwordPolicy.requireUppercase && !/[A-Z]/.test(password.next) ? "Add an uppercase letter" : "",
-      passwordPolicy.requireLowercase && !/[a-z]/.test(password.next) ? "Add a lowercase letter" : "",
-      passwordPolicy.requireNumbers && !/\d/.test(password.next) ? "Add a number" : "",
-      passwordPolicy.requireSpecialCharacters && !/[^A-Za-z0-9]/.test(password.next) ? "Add a special character" : "",
-    ].filter(Boolean);
+    const policyErrors = passwordPolicyErrors(password.next, passwordPolicy);
     if (policyErrors.length) return toast.error(policyErrors.join(". "));
     setBusy(true);
     try {
@@ -442,7 +454,7 @@ const UserAccountDialog = ({ open, onOpenChange, targetUser, createMode = false,
             <div className="rounded-lg bg-muted/30 p-3"><div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /><h3 className="text-sm font-semibold">Two-factor authentication</h3></div><p className="mt-1 text-xs text-muted-foreground">{details?.twoFactorEnabled ? "Enabled for this account." : "Not configured for this account."}</p><span className="mt-2 inline-flex rounded-full bg-background px-2 py-0.5 text-xs font-medium">{details?.twoFactorEnabled ? "Enabled" : "Not configured"}</span></div>
             <div className="rounded-lg bg-muted/30 p-3"><div className="flex items-center gap-2"><Laptop className="h-4 w-4 text-primary" /><h3 className="text-sm font-semibold">{isAdminFlow ? "Account access" : "Current session"}</h3></div>{isAdminFlow ? <div className="mt-2"><div className="flex items-center justify-between gap-3 rounded-lg bg-background p-2.5"><div><Label htmlFor="account-active" className="text-xs font-medium">Active account</Label><p className="text-[11px] text-muted-foreground">{adminStatus ? "The account is enabled." : "User cannot sign in."}</p></div><Switch id="account-active" aria-label="Active account" checked={adminStatus} onCheckedChange={setAdminStatus} /></div></div> : <><p className="mt-1 text-xs text-muted-foreground">This browser is currently signed in.</p><Button className="mt-2 h-7 text-xs" size="sm" variant="outline" onClick={() => void logout()}><LogOut className="mr-1.5 h-3.5 w-3.5" /> Sign out</Button></>}</div>
           </section>
-          <section className="space-y-2 rounded-lg border p-3"><div className="flex items-center gap-2"><KeyRound className="h-4 w-4 text-primary" /><div><h3 className="text-sm font-semibold">{createMode ? "Initial password and roles" : targetUser ? "Password management" : "Change password"}</h3><p className="text-xs text-muted-foreground">{platformMode && platformPolicy ? `Use at least ${platformPolicy.minimumPasswordLength} characters with lowercase${platformPolicy.requireUppercase ? ", uppercase" : ""}${platformPolicy.requireNumbers ? ", number" : ""}${platformPolicy.requireSpecialCharacters ? ", special character" : ""}.` : `Use at least ${passwordPolicy.minimumPasswordLength} characters with lowercase${passwordPolicy.requireUppercase ? ", uppercase" : ""}${passwordPolicy.requireNumbers ? ", number" : ""}${passwordPolicy.requireSpecialCharacters ? ", special character" : ""}.`}</p></div></div>
+          <section className="space-y-2 rounded-lg border p-3"><div className="flex items-center gap-2"><KeyRound className="h-4 w-4 text-primary" /><div><h3 className="text-sm font-semibold">{createMode ? "Initial password and roles" : targetUser ? "Password management" : "Change password"}</h3><p className="text-xs text-muted-foreground">{passwordPolicyHint(passwordPolicy)}</p></div></div>
             {createMode || (platformMode && targetUser) ? <div className="space-y-3">{createMode && <div className="space-y-1.5"><Label>Initial password</Label><Input name="new-password" type="password" autoComplete="new-password" value={initialPassword} onChange={e => setInitialPassword(e.target.value)} /></div>}<div className="space-y-1.5"><div className="flex items-center justify-between"><Label>Platform roles</Label><span className="text-[11px] text-muted-foreground">{roleIds.length} selected</span></div><div className="max-h-28 space-y-1 overflow-y-auto rounded-md border p-2">{roles.length ? roles.map(role => <label key={role.id} className="flex cursor-pointer items-start gap-2 rounded p-1.5 hover:bg-muted/50"><Checkbox className="mt-0.5" checked={roleIds.includes(role.id)} onCheckedChange={checked => setRoleIds(current => checked ? [...current, role.id] : current.filter(id => id !== role.id))} /><span><span className="block text-xs font-medium">{role.name}</span>{role.description && <span className="block text-[11px] text-muted-foreground">{role.description}</span>}</span></label>) : <p className="p-2 text-xs text-muted-foreground">No platform roles are available.</p>}</div></div></div> : targetUser ? <p className="rounded-md bg-muted/30 p-3 text-xs text-muted-foreground">Password resets remain available from the user actions menu.</p> : <><div className="grid gap-3 sm:grid-cols-2"><Input name="username" autoComplete="username" value={form.userName} readOnly tabIndex={-1} aria-hidden="true" className="sr-only" /><div className="space-y-1.5 sm:col-span-2"><Label>Current password</Label><Input name="current-password" type="password" autoComplete="current-password" value={password.current} onChange={e => setPassword(p => ({ ...p, current: e.target.value }))} /></div><div className="space-y-1.5"><Label>New password</Label><Input name="new-password" type="password" autoComplete="new-password" value={password.next} onChange={e => setPassword(p => ({ ...p, next: e.target.value }))} /></div><div className="space-y-1.5"><Label>Confirm password</Label><Input name="confirm-password" type="password" autoComplete="new-password" value={password.confirm} onChange={e => setPassword(p => ({ ...p, confirm: e.target.value }))} /></div></div><Button size="sm" onClick={handlePasswordChange} disabled={busy || !password.current || !password.next || !password.confirm}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Update password</Button></>}
           </section>
           <section className="col-span-2 overflow-hidden rounded-lg border"><div className="flex items-center justify-between gap-3 border-b p-3"><div className="flex items-center gap-2"><History className="h-4 w-4 text-primary" /><div><h3 className="text-sm font-semibold">Recent security activity</h3><p className="text-xs text-muted-foreground">Your four latest authentication events.</p></div></div>{(details?.activity.length || 0) > 4 && <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setActivityOpen(true)}>View all</Button>}</div>
