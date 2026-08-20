@@ -103,7 +103,10 @@ const UserAccountDialog = ({ open, onOpenChange, targetUser, createMode = false,
     const nextEmployeeId = targetUser?.employeeId || null;
     setEmployeeId(nextEmployeeId);
     setAdminStatus(targetUser?.status ?? true);
-    setDisplayPictureUrl(effectiveUser?.profilePictureUrl || null);
+    setDisplayPictureUrl(
+      effectiveUser?.profilePictureUrl
+      || (!createMode && !targetUser && user ? cacheBustedUrl(`/api/v1.0/User/${user.id}/profile-picture`) : null),
+    );
     setPictureRemoved(false);
     if (pendingPicture) URL.revokeObjectURL(pendingPicture.url);
     setPendingPicture(null);
@@ -120,9 +123,11 @@ const UserAccountDialog = ({ open, onOpenChange, targetUser, createMode = false,
           };
           setForm(identityForm);
           syncUserProfile(identityForm);
-          const nextPictureUrl = cacheBustedUrl(data.profilePictureUrl);
-          setDisplayPictureUrl(nextPictureUrl);
-          syncProfilePicture(user.id, nextPictureUrl);
+          const nextPictureUrl = cacheBustedUrl(data.profilePictureUrl ?? user.profilePictureUrl);
+          if (nextPictureUrl) {
+            setDisplayPictureUrl(nextPictureUrl);
+            syncProfilePicture(user.id, nextPictureUrl);
+          }
           const currentSnapshot = initialForm.current ? JSON.parse(initialForm.current) : {};
           initialForm.current = JSON.stringify({ ...currentSnapshot, form: identityForm });
         })

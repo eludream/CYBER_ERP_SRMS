@@ -152,9 +152,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(current => current?.id === user.id ? { ...current, profilePictureUrl: null } : current);
   };
 
-  const syncProfilePicture = (userId: string, profilePictureUrl: string | null) => {
+  const syncProfilePicture = useCallback((userId: string, profilePictureUrl: string | null) => {
     setUser(current => current?.id === userId ? { ...current, profilePictureUrl } : current);
-  };
+  }, []);
 
   const syncUserProfile = useCallback((profile: { name: string; email: string; phoneNumber: string; userName: string }) => {
     setUser(current => {
