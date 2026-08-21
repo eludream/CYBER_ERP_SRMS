@@ -67,8 +67,10 @@ namespace CyberErp.Srms.Api.Controllers.Core
         }
 
         [HttpGet("{id:guid}")]
-        public async Task<UserDto> GetById(Guid id)
+        public async Task<ActionResult<UserDto>> GetById(Guid id)
         {
+            // Without a tenant, only the signed-in user may read their own profile.
+            if (!HasTenantContext() && !IsCurrentUser(id)) return Forbid();
             return await _getUserById.Handle(new GetUserByIdRequest(id));
         }
 
@@ -153,8 +155,10 @@ namespace CyberErp.Srms.Api.Controllers.Core
         }
 
         [HttpPut]
-        public async Task<CyberErp.Srms.App.Features.Core.Users.Update.UserResult> Update([FromBody] UpdateUserRequest dto)
+        public async Task<ActionResult<CyberErp.Srms.App.Features.Core.Users.Update.UserResult>> Update([FromBody] UpdateUserRequest dto)
         {
+            // Without a tenant, only the signed-in user may update their own profile.
+            if (!HasTenantContext() && !IsCurrentUser(dto.Id)) return Forbid();
             return await _updateUser.Handle(dto);
         }
 
@@ -174,10 +178,8 @@ namespace CyberErp.Srms.Api.Controllers.Core
                 { "image/jpeg", "image/png", "image/gif", "image/webp" };
             if (!allowedTypes.Contains(file.ContentType)) return BadRequest("Only JPG, PNG, GIF, and WebP images are supported.");
 
-            var tenantId = CurrentTenantGuid();
-            var user = await _db.User.FirstOrDefaultAsync(x => x.Id == id &&
-                (_environment.IsDevelopment() ||
-                 _db.TenantUsers.Any(m => m.UserId == x.Id && m.TenantId == tenantId && m.Status == MembershipStatus.Active)), ct);
+            if (!IsCurrentUser(id) && !await CanManageUserProfileAsync(id, ct)) return Forbid();
+            var user = await _db.User.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (user is null) return NotFound();
             await using var stream = new MemoryStream();
             await file.CopyToAsync(stream, ct);
@@ -205,10 +207,8 @@ namespace CyberErp.Srms.Api.Controllers.Core
         [HttpDelete("{id:guid}/profile-picture")]
         public async Task<IActionResult> RemoveProfilePicture(Guid id, CancellationToken ct)
         {
-            var tenantId = CurrentTenantGuid();
-            var user = await _db.User.FirstOrDefaultAsync(x => x.Id == id &&
-                (_environment.IsDevelopment() ||
-                 _db.TenantUsers.Any(m => m.UserId == x.Id && m.TenantId == tenantId && m.Status == MembershipStatus.Active)), ct);
+            if (!IsCurrentUser(id) && !await CanManageUserProfileAsync(id, ct)) return Forbid();
+            var user = await _db.User.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (user is null) return NotFound();
             user.RemoveProfilePicture();
             await _db.SaveChangesAsync(ct);
@@ -280,7 +280,7 @@ namespace CyberErp.Srms.Api.Controllers.Core
         public async Task<IActionResult> UpdatePreferences(Guid id, [FromBody] UserPreferenceRequest request, CancellationToken ct)
         {
             if (!IsCurrentUser(id)) return Forbid();
-            var tenantId = CurrentTenantId();
+            var tenantId = HasTenantContext() ? CurrentTenantId() : Guid.Empty.ToString();
             var preference = await _db.UserPreference.FirstOrDefaultAsync(x => x.UserId == id, ct);
             if (preference is null)
             {
@@ -301,6 +301,9 @@ namespace CyberErp.Srms.Api.Controllers.Core
         private string CurrentTenantId() =>
             User.FindFirst("TenantId")?.Value ?? User.FindFirst("tenant_id")?.Value ?? string.Empty;
 
+        private bool HasTenantContext() =>
+            Guid.TryParse(CurrentTenantId(), out var tenantId) && tenantId != Guid.Empty;
+
         private Guid CurrentTenantGuid() =>
             Guid.TryParse(CurrentTenantId(), out var tenantId) && tenantId != Guid.Empty
                 ? tenantId
@@ -309,10 +312,14 @@ namespace CyberErp.Srms.Api.Controllers.Core
         private Task<bool> IsActiveTenantUser(Guid userId, CancellationToken ct)
         {
             if (_environment.IsDevelopment()) return Task.FromResult(true);
+            if (!HasTenantContext()) return Task.FromResult(false);
             var tenantId = CurrentTenantGuid();
             return _db.TenantUsers.AsNoTracking().AnyAsync(
                 x => x.UserId == userId && x.TenantId == tenantId && x.Status == MembershipStatus.Active, ct);
         }
+
+        private async Task<bool> CanManageUserProfileAsync(Guid userId, CancellationToken ct) =>
+            _environment.IsDevelopment() || await IsActiveTenantUser(userId, ct);
     }
 
     public record PasswordPolicyResponse(

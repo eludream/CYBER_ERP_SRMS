@@ -15,8 +15,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import SRMSIdentity from "@/components/SRMSIdentity";
+import { cn } from "@/lib/utils";
 
-const AppHeader = () => {
+const AppHeader = ({ standalone = false }: { standalone?: boolean }) => {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [searchOpen, setSearchOpen] = useState(false);
   const [importExportOpen, setImportExportOpen] = useState(false);
@@ -36,7 +37,10 @@ const AppHeader = () => {
 
   return (
     <>
-      <header className="h-12 border-b border-border bg-card/80 backdrop-blur-sm flex items-center pl-14 pr-2 gap-1 shrink-0 sticky top-0 z-20 md:px-4">
+      <header className={cn(
+        "flex h-12 shrink-0 items-center gap-1 border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-20",
+        standalone ? "px-4" : "pl-14 pr-2 md:px-4",
+      )}>
         <SRMSIdentity className="mr-3 hidden lg:block" />
         <Separator orientation="vertical" className="mr-3 hidden h-5 lg:block" />
         {/* Search trigger */}
